@@ -67,6 +67,7 @@
   .bdot{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--ink);flex:none}
   .brand-h.active .bdot{border-color:#fff}
   .bname{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bshort{display:none;font-weight:600}
   .bcount{font-size:11px;background:var(--yellow);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:0 6px;font-weight:700}
   .brand-h.active .bcount{background:#fff}
   .sidebar.collapsed .brand-h{justify-content:center;padding:9px 0;gap:0}
@@ -146,14 +147,17 @@
     .sb-list{flex:1;display:flex;flex-direction:row;align-items:center;gap:6px;
       overflow-x:auto;overflow-y:hidden;padding:7px 8px}
     .sb-all,.brand-h{flex:0 0 auto;width:auto;margin:0;white-space:nowrap}
+    .brand-h .bname,.brand-h .bcount{display:none}   /* show only the 4-letter label */
+    .brand-h .bshort{display:inline}
     /* detail -> bottom sheet */
     .board{right:50%;left:auto;top:auto;bottom:10px;transform:translateX(50%) translateY(170%);
       width:calc(100vw - 20px);max-height:66vh}
     .board.open{transform:translateX(50%) translateY(0)}
-    /* compare -> full-width panels stacked vertically */
+    /* compare -> full-width panels, swipe horizontally (newest shows first) */
     .compare-row{left:10px;right:10px;top:74px;bottom:10px;max-width:none;
-      flex-direction:column;align-items:stretch;overflow-x:hidden;overflow-y:auto}
-    .cpanel{width:auto;max-height:none}
+      flex-direction:row;align-items:flex-start;overflow-x:auto;overflow-y:hidden}
+    .cpanel{width:86vw;max-height:calc(100vh - 92px)}
+    .cpanel.empty{display:none}   /* on mobile the top brand bar is how you add */
   }
 </style>
 </head>
@@ -200,6 +204,7 @@
     "Outdoor fitness park":"#2dc26b","Coached fitness course":"#E8511A","Gym & fitness centre":"#ff7a59"
   };
   const BRAND_COLOR = { "Burn":"#DC002C", "Burn Klassik":"#E8511A", "Yndi Fitness":"#2E6FE6", "Vælvera Fitness":"#8A4FD3" };
+  const SHORT_LABEL = { "Burn Klassik":"Klass" };   // mobile chip label override
   const brandOf = g => g.name.split(" — ")[0];
   const colorFor = g => BRAND_COLOR[brandOf(g)] || TYPE_COLOR[g.type] || "#ff7a59";
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -246,7 +251,7 @@
   const headEls = {};
   brands.forEach(b=>{
     const h = document.createElement('button'); h.className='brand-h';
-    h.innerHTML = `<span class="bdot" style="background:${colorFor(brandMap[b][0])}"></span><span class="bname">${esc(b)}</span><span class="bcount">${brandMap[b].length}</span>`;
+    h.innerHTML = `<span class="bdot" style="background:${colorFor(brandMap[b][0])}"></span><span class="bname">${esc(b)}</span><span class="bshort">${esc(SHORT_LABEL[b]||b.slice(0,4))}</span><span class="bcount">${brandMap[b].length}</span>`;
     h.onclick = ()=>{ compareMode ? addCompare(b) : selectBrand(b); };
     headEls[b] = h; listEl.appendChild(h);
   });
