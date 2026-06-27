@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>FoFit — Faroe Islands fitness map</title>
+<meta name="description" content="Interactive map of gyms and fitness centres in the Faroe Islands — prices, opening hours, contact and amenities." />
+<meta name="theme-color" content="#ffd23f" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23ff7a59'/%3E%3Ctext x='50' y='52' font-size='58' text-anchor='middle' dominant-baseline='central'%3E%F0%9F%8F%8B%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+<meta property="og:title" content="FoFit — Faroe Islands fitness map" />
+<meta property="og:description" content="Find gyms and fitness centres across the Faroe Islands — prices, opening hours, classes and contact, on one map." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#fdf6e9; --panel:#ffffff; --panel-2:#fff8ed; --ink:#23303b; --muted:#6b7b88;
+    --accent:#ff7a59; --accent-2:#19b6c9; --yellow:#ffd23f; --green:#2dc26b; --pink:#ff6f9c;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:"Fredoka",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+  a{color:#0f8d9c;text-decoration:none;font-weight:500}
+  a:hover{text-decoration:underline}
+
+  #map{position:fixed;inset:0;background:#aadaff;z-index:0}
+  .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;border-radius:8px 0 0 0}
+  .pin{border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid var(--ink);
+    box-shadow:2px 3px 0 rgba(35,48,59,.35);display:grid;place-items:center}
+  .pin span{transform:rotate(45deg);font-size:15px;line-height:1}
+
+  /* ---------- Left brand navigator ---------- */
+  .sidebar{position:fixed;left:16px;top:50%;transform:translateY(-50%);width:230px;z-index:1050;max-height:calc(100vh - 110px);
+    background:#fff;border:3px solid var(--ink);border-radius:18px;box-shadow:4px 4px 0 var(--ink);
+    display:flex;flex-direction:column;overflow:hidden;transition:width .22s ease}
+  .sidebar.collapsed{width:60px}
+  .sb-head{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:3px solid var(--ink);background:var(--yellow)}
+  .sb-head .sb-mark{width:27px;height:27px;border-radius:8px;background:var(--accent);border:2.5px solid var(--ink);
+    display:grid;place-items:center;font-size:14px;transform:rotate(-5deg);flex:none}
+  .sb-head h3{margin:0;font-size:18px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden}
+  .sb-head h3 .fo{color:var(--accent)}
+  .sidebar.collapsed .sb-head{padding:11px 0;justify-content:center}
+  .sidebar.collapsed .sb-head h3,.sidebar.collapsed .sb-mark{display:none}
+  .sb-toggle{border:2.5px solid var(--ink);background:#fff;color:var(--ink);width:28px;height:28px;border-radius:8px;
+    cursor:pointer;font-size:15px;line-height:1;font-weight:700;box-shadow:2px 2px 0 var(--ink);flex:none}
+  .sb-toggle:active{transform:translate(2px,2px);box-shadow:none}
+  .sb-list{overflow-y:auto;overflow-x:hidden;padding:8px;scrollbar-width:thin}
+  .sb-all{width:calc(100% - 4px);text-align:left;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;
+    padding:9px 11px;border-radius:10px;border:2.5px solid var(--ink);background:var(--panel-2);color:var(--ink);
+    box-shadow:2px 2px 0 var(--ink);margin:2px 2px 8px;white-space:nowrap;overflow:hidden}
+  .sb-all.active{background:var(--ink);color:#fff}
+  .brand-h{width:calc(100% - 4px);display:flex;align-items:center;gap:8px;font-family:inherit;font-weight:600;font-size:14px;
+    cursor:pointer;padding:9px 10px;border-radius:10px;border:2.5px solid var(--ink);background:#fff;color:var(--ink);
+    box-shadow:2px 2px 0 var(--ink);margin:0 2px 7px}
+  .brand-h:active{transform:translate(2px,2px);box-shadow:none}
+  .brand-h.active{background:var(--accent-2);color:#fff}
+  .bdot{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--ink);flex:none}
+  .brand-h.active .bdot{border-color:#fff}
+  .bname{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bcount{font-size:11px;background:var(--yellow);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:0 6px;font-weight:700}
+  .brand-h.active .bcount{background:#fff}
+  .sidebar.collapsed .brand-h{justify-content:center;padding:9px 0;gap:0}
+  .sidebar.collapsed .bname,.sidebar.collapsed .bcount{display:none}
+  .sidebar.collapsed .sb-all{text-align:center;padding:9px 0;font-size:15px}
+  .sidebar.collapsed .alltext{display:none}
+
+  /* ---------- Floating detail board ---------- */
+  .board{position:fixed;right:18px;top:18px;transform:translateX(120%);
+    width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 36px);z-index:1100;
+    background:#fff;border:3px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);
+    display:flex;flex-direction:column;transition:transform .28s cubic-bezier(.2,.8,.2,1);overflow:hidden}
+  .board.open{transform:translateX(0)}
+  .board .bh{padding:13px 14px 12px;border-bottom:3px solid var(--ink);background:var(--yellow)}
+  .board .bh-top{display:grid;grid-template-columns:minmax(0,auto) 1fr auto;align-items:center;gap:8px}
+  .board .bh h2{margin:0;font-size:24px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .board .bh .sub{color:var(--ink);font-size:13px;font-weight:500;margin-top:4px}
+  .bclose{justify-self:end;border:3px solid var(--ink);background:#fff;color:var(--ink);
+    width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:16px;line-height:1;font-weight:700;box-shadow:2px 2px 0 var(--ink)}
+  .bclose:active{transform:translate(2px,2px);box-shadow:none}
+  .bcmp{justify-self:center;border:2.5px solid var(--ink);background:var(--accent-2);color:#fff;white-space:nowrap;
+    padding:7px 16px;border-radius:999px;cursor:pointer;font-size:13.5px;line-height:1;font-weight:600;box-shadow:2px 2px 0 var(--ink);font-family:inherit}
+  .bcmp:active{transform:translate(2px,2px);box-shadow:none}
+  .tabs{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px;border-bottom:3px solid var(--ink);background:#fff7ec}
+  .tab{flex:0 0 auto;white-space:nowrap;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 13px;border-radius:999px;
+    border:2.5px solid var(--ink);background:#fff;color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .tab.active{background:var(--accent);color:#fff}
+  .tab:active{transform:translate(2px,2px);box-shadow:none}
+  .bbody{overflow-y:auto;padding:14px 18px 16px}
+  .sec{margin-bottom:16px}
+  .sec h4{margin:0 0 9px;font-size:12px;letter-spacing:.3px;color:#fff;font-weight:600;background:var(--accent);
+    display:inline-block;padding:3px 12px;border-radius:999px;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .ph{width:100%;height:150px;object-fit:cover;border-radius:12px;border:3px solid var(--ink);background:var(--panel-2);margin-bottom:14px;box-shadow:3px 3px 0 var(--ink)}
+  .pricebig{font-size:22px;font-weight:700;color:#13934f;margin:-2px 0 2px}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:6px 2px;border-bottom:2px dotted #cdd6dd;font-size:13.5px;font-weight:500}
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--muted)} .row .v{text-align:right}
+  .price-v{color:#13934f;font-weight:600}
+  .hours .today{background:#eafff3;border-radius:8px}
+  .hours .today .k{color:#13934f;font-weight:700}
+  .tags{display:flex;flex-wrap:wrap;gap:6px}
+  .tags span{font-size:12px;color:var(--ink);background:var(--panel-2);border:2.5px solid var(--ink);padding:3px 10px;border-radius:999px;font-weight:500;box-shadow:2px 2px 0 var(--ink)}
+  .note{color:var(--muted);font-size:12px;font-style:italic;margin-top:7px;font-weight:500}
+  .unverified{font-size:12px;color:var(--ink);background:var(--yellow);border:2.5px solid var(--ink);padding:7px 10px;border-radius:10px;margin-top:7px;font-weight:500;box-shadow:3px 3px 0 var(--ink)}
+  .cmpsimilar{display:block;width:100%;text-align:center;margin-top:6px;background:var(--accent-2);color:#fff;font-family:inherit;font-weight:600;
+    font-size:14.5px;padding:11px;border-radius:12px;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+  .cmpsimilar:hover{background:#15a0b1}
+  .cmpsimilar:active{transform:translate(3px,3px);box-shadow:none}
+
+  /* ---------- Inline compare: full panels side by side ---------- */
+  body.compare-on .board{display:none}
+  .compare-row{position:fixed;right:18px;top:18px;z-index:1150;
+    display:flex;gap:14px;align-items:flex-start;max-width:calc(100vw - 270px);overflow-x:auto;padding:4px;
+    opacity:0;pointer-events:none;transition:opacity .2s ease;scrollbar-width:none}
+  .compare-row::-webkit-scrollbar{display:none}
+  body.compare-on .compare-row{opacity:1;pointer-events:auto}
+  .cpanel{flex:0 0 auto;width:min(340px,86vw);max-height:calc(100vh - 36px);background:#fff;border:3px solid var(--ink);border-radius:20px;
+    box-shadow:6px 6px 0 var(--ink);display:flex;flex-direction:column;overflow:hidden}
+  .cpanel .cph{padding:15px 16px 12px;border-bottom:3px solid var(--ink);background:var(--yellow);position:relative}
+  .cpanel .cph h2{margin:0 0 2px;font-size:19px;font-weight:700;padding-right:34px}
+  .cpanel .cph .sub{font-size:12.5px;font-weight:500;color:var(--ink)}
+  .cpanel .cpx{position:absolute;top:12px;right:12px;border:3px solid var(--ink);background:#fff;color:var(--ink);width:28px;height:28px;
+    border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;line-height:1;box-shadow:2px 2px 0 var(--ink)}
+  .cpanel .cpx:active{transform:translate(2px,2px);box-shadow:none}
+  .cpanel .cpb{overflow-y:auto;padding:13px 16px 16px}
+  .cpanel .ctabs{display:flex;flex-wrap:wrap;gap:7px;padding:10px 14px;border-bottom:3px solid var(--ink);background:#fff7ec}
+  .cpanel.empty{align-items:center;justify-content:center;border-style:dashed;background:#fff8ed;color:var(--muted);
+    text-align:center;font-weight:600;font-size:14px;padding:26px;min-height:220px}
+
+  @media (max-width:680px){
+    .sidebar{width:206px}
+    .board{right:50%;top:auto;bottom:14px;transform:translateX(50%) translateY(160%);width:calc(100vw - 24px);max-height:58vh}
+    .board.open{transform:translateX(50%) translateY(0)}
+    .compare-row{left:12px;right:12px;top:12px;max-width:none}
+    .cpanel{max-height:calc(100vh - 26px)}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<aside id="sidebar" class="sidebar">
+  <div class="sb-head">
+    <span class="sb-mark">🏋️</span>
+    <h3><span class="fo">Fo</span>Fit</h3>
+    <button id="sb-toggle" class="sb-toggle" aria-label="Collapse">‹</button>
+  </div>
+  <div id="sb-list" class="sb-list"></div>
+</aside>
+
+<div id="board" class="board">
+  <div class="bh">
+    <div class="bh-top">
+      <h2 id="b-name"></h2>
+      <button class="bcmp" id="b-compare" title="Compare price &amp; hours">Compare ⚖</button>
+      <button class="bclose" id="bclose" aria-label="Close">×</button>
+    </div>
+    <div class="sub" id="b-sub"></div>
+  </div>
+  <div id="b-tabs" class="tabs" style="display:none"></div>
+  <div class="bbody" id="bbody"></div>
+</div>
+
+<div id="compare-row" class="compare-row"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const todayKey = DAYS[new Date().getDay()];
+  let brandFilter = null;
+  let selectedId = null;
+  let compareMode = false;
+  let compareList = [];   // brand names; index 0 = the kept panel (stays on the right)
+  let compareLoc = {};    // brand -> active location id (for chains with tabs)
+
+  const TYPE_COLOR = {
+    "CrossFit box":"#ff6f9c","Fitness & class studio":"#ffd23f",
+    "Outdoor fitness park":"#2dc26b","Coached fitness course":"#E8511A","Gym & fitness centre":"#ff7a59"
+  };
+  const BRAND_COLOR = { "Burn":"#DC002C", "Burn Klassik":"#E8511A", "Yndi Fitness":"#2E6FE6", "Vælvera Fitness":"#8A4FD3" };
+  const brandOf = g => g.name.split(" — ")[0];
+  const colorFor = g => BRAND_COLOR[brandOf(g)] || TYPE_COLOR[g.type] || "#ff7a59";
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ---- Map ----
+  const FOCUS_ZOOM = 15;
+  const map = L.map('map', { zoomControl:false, zoomSnap:2.5, zoomDelta:2.5, minZoom:10, maxZoom:15 })
+    .setView(MAP_CENTER, MAP_ZOOM);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:19
+  }).addTo(map);
+
+  function icon(g, active){
+    const sz = active?42:34;
+    return L.divIcon({ className:'',
+      html:`<div class="pin" style="width:${sz}px;height:${sz}px;background:${colorFor(g)};${active?'box-shadow:3px 4px 0 rgba(35,48,59,.45);':''}"><span>🏋️</span></div>`,
+      iconSize:[sz,sz], iconAnchor:[sz/2,sz] });
+  }
+
+  const markers = {};
+  GYMS.forEach(g=>{
+    const m = L.marker(g.coords, {icon:icon(g,false)}).addTo(map);
+    m.on('click', ()=>{ if(compareMode){ compareLoc[brandOf(g)]=g.id; addCompare(brandOf(g)); } else selectLocation(g.id); });
+    markers[g.id] = m;
+  });
+  map.on('click', ()=>{ if(compareMode) exitCompare(); else resetToAll(); });
+
+  const allBounds = L.latLngBounds(GYMS.map(g=>g.coords));
+  map.fitBounds(allBounds, {padding:[70,70], maxZoom:10});
+
+  // ---- Brand groups ----
+  const brands = [];
+  const brandMap = {};
+  GYMS.forEach(g=>{ const b=brandOf(g); if(!brandMap[b]){brandMap[b]=[]; brands.push(b);} brandMap[b].push(g); });
+
+  // ---- Left navigator (brands only) ----
+  const listEl = document.getElementById('sb-list');
+  const allItem = document.createElement('button');
+  allItem.className = 'sb-all active';
+  allItem.innerHTML = '★<span class="alltext"> All gyms</span>';
+  allItem.onclick = ()=>{ exitCompare(); resetToAll(true); };
+  listEl.appendChild(allItem);
+
+  const headEls = {};
+  brands.forEach(b=>{
+    const h = document.createElement('button'); h.className='brand-h';
+    h.innerHTML = `<span class="bdot" style="background:${colorFor(brandMap[b][0])}"></span><span class="bname">${esc(b)}</span><span class="bcount">${brandMap[b].length}</span>`;
+    h.onclick = ()=>{ compareMode ? addCompare(b) : selectBrand(b); };
+    headEls[b] = h; listEl.appendChild(h);
+  });
+
+  // ---- Shared selection state (keeps map + nav + detail in sync) ----
+  function setBrandActive(b){
+    allItem.classList.toggle('active', !b);
+    Object.entries(headEls).forEach(([k,e])=>e.classList.toggle('active', k===b));
+  }
+  function setActivePins(){
+    GYMS.forEach(g=>{
+      markers[g.id].setIcon(icon(g, g.id===selectedId));
+      markers[g.id].setOpacity(matches(g)?1:0.12);
+    });
+  }
+  function matches(g){ return !brandFilter || brandOf(g)===brandFilter; }
+
+  function resetToAll(fly){
+    brandFilter = null; selectedId = null;
+    setBrandActive(null); closeBoard();
+    setActivePins();
+    if(fly) map.flyToBounds(allBounds, {padding:[70,70], maxZoom:10, duration:.6});
+  }
+  function selectBrand(b){
+    brandFilter = b; setBrandActive(b);
+    openBoard(brandMap[b][0].id, false);   // detail with location tabs
+    setActivePins();
+    const pts = brandMap[b].map(g=>g.coords);
+    map.flyToBounds(L.latLngBounds(pts), {padding:[110,110], maxZoom:13, duration:.6});
+  }
+  function selectLocation(id){
+    const g = GYMS.find(x=>x.id===id); if(!g) return;
+    brandFilter = brandOf(g); setBrandActive(brandFilter);
+    openBoard(id, true);
+    setActivePins();
+  }
+
+
+  // ---- Collapsible sidebar (slim strip) ----
+  const sidebar = document.getElementById('sidebar');
+  const sbToggle = document.getElementById('sb-toggle');
+  function setCollapsed(c){ sidebar.classList.toggle('collapsed', c); sbToggle.textContent = c?'›':'‹'; sbToggle.setAttribute('aria-label', c?'Expand brand list':'Collapse brand list'); }
+  sbToggle.onclick = ()=>setCollapsed(!sidebar.classList.contains('collapsed'));
+  setCollapsed(window.matchMedia('(max-width:680px)').matches);
+
+  // ---- Detail board ----
+  const board = document.getElementById('board');
+  const tabsEl = document.getElementById('b-tabs');
+  document.getElementById('bclose').onclick = ()=>resetToAll();
+  document.getElementById('b-compare').onclick = ()=>{ if(selectedId){ const g=GYMS.find(x=>x.id===selectedId); enterCompare(brandOf(g), selectedId); } };
+
+  function buildTabs(brand, activeId){
+    const group = brandMap[brand] || [];
+    if(group.length < 2){ tabsEl.style.display='none'; tabsEl.innerHTML=''; return; }
+    tabsEl.innerHTML = '';
+    group.forEach(g=>{
+      const t = document.createElement('button');
+      t.className = 'tab'+(g.id===activeId?' active':'');
+      t.textContent = g.town;
+      t.onclick = (ev)=>{ ev.stopPropagation(); selectLocation(g.id); };
+      tabsEl.appendChild(t);
+    });
+    tabsEl.style.display = 'flex';
+  }
+
+  function hoursRows(g){
+    if(!DAYS.some(d=>g.hours&&g.hours[d]))
+      return (g.hours&&g.hours.note) ? `<div class="note">${esc(g.hours.note)}</div>` : '<div class="note">See website.</div>';
+    const wk = ["Mon","Tue","Wed","Thu","Fri"];
+    const rows = [];
+    // collapse consecutive identical weekdays (Mon–Fri) into ranges
+    for(let i=0;i<wk.length;){
+      const v = g.hours[wk[i]] || '—';
+      let j = i;
+      while(j+1<wk.length && (g.hours[wk[j+1]]||'—')===v) j++;
+      const days = wk.slice(i,j+1);
+      rows.push({ label: i===j ? wk[i] : `${wk[i]}–${wk[j]}`, v, today: days.includes(todayKey) });
+      i = j+1;
+    }
+    // Saturday and Sunday on their own
+    ["Sat","Sun"].forEach(d=> rows.push({ label:d, v:g.hours[d]||'—', today:d===todayKey }));
+    return rows.map(r=>
+      `<div class="row ${r.today?'today':''}"><span class="k">${r.label}${r.today?' · today':''}</span><span class="v">${esc(r.v)}</span></div>`).join('');
+  }
+  function priceRows(g){
+    return (g.prices||[]).map(p=>`<div class="row"><span class="k">${esc(p.label)}</span><span class="v price-v">${esc(p.value)}</span></div>`).join('');
+  }
+  function detailHtml(g){
+    let html = '';
+    if(g.photo) html += `<img class="ph" src="${esc(g.photo)}" alt="${esc(g.name)}" onerror="this.style.display='none'">`;
+    html += `<div class="sec"><div class="pricebig">${esc(g.priceMonthly||'—')}</div>${priceRows(g)}</div>`;
+    html += `<div class="sec hours"><h4>Opening hours</h4>${hoursRows(g)}`;
+    if(g.hours && g.hours.note && DAYS.some(d=>g.hours[d])) html += `<div class="note">${esc(g.hours.note)}</div>`;
+    html += `</div>`;
+    if(g.classes && g.classes.length)
+      html += `<div class="sec"><h4>Classes this week</h4><div class="tags">${g.classes.map(c=>`<span>${esc(c)}</span>`).join('')}</div></div>`;
+    if(g.amenities && g.amenities.length)
+      html += `<div class="sec"><h4>Amenities</h4><div class="tags">${g.amenities.map(a=>`<span>${esc(a)}</span>`).join('')}</div></div>`;
+    html += `<div class="sec"><h4>Contact</h4>`;
+    if(g.address) html += `<div class="row"><span class="k">Address</span><span class="v">${esc(g.address)}</span></div>`;
+    if(g.phone)   html += `<div class="row"><span class="k">Phone</span><span class="v"><a href="tel:${esc(g.phone.replace(/\s/g,''))}">${esc(g.phone)}</a></span></div>`;
+    if(g.email)   html += `<div class="row"><span class="k">Email</span><span class="v"><a href="mailto:${esc(g.email)}">${esc(g.email)}</a></span></div>`;
+    if(g.website) html += `<div class="row"><span class="k">Website</span><span class="v"><a href="${esc(g.website)}" target="_blank" rel="noopener">${esc(g.website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a></span></div>`;
+    if(g.facebook) html += `<div class="row"><span class="k">${/instagram/.test(g.facebook)?'Instagram':'Facebook'}</span><span class="v"><a href="${esc(g.facebook)}" target="_blank" rel="noopener">Page ↗</a></span></div>`;
+    const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${g.coords[0]},${g.coords[1]}`;
+    html += `<div class="row"><span class="k">Directions</span><span class="v"><a href="${gmaps}" target="_blank" rel="noopener">Open in Maps ↗</a></span></div></div>`;
+    if(g.notes) html += `<div class="sec"><h4>About</h4><div style="font-size:13.5px;color:#3b4a57;font-weight:500">${esc(g.notes)}</div></div>`;
+    if(!g.verified) html += `<div class="unverified">⚠︎ Some details unconfirmed — please verify with the gym.</div>`;
+    return html;
+  }
+
+  function openBoard(id, fly){
+    const g = GYMS.find(x=>x.id===id); if(!g) return;
+    selectedId = id;
+    if(fly) map.setView(g.coords, FOCUS_ZOOM, {animate:true, duration:.5});
+
+    buildTabs(brandOf(g), id);
+    document.getElementById('b-name').textContent = brandOf(g);
+    document.getElementById('b-sub').textContent = `${g.type} · ${g.town}, ${g.island}`;
+
+    const body = document.getElementById('bbody');
+    body.innerHTML = detailHtml(g);
+    body.scrollTop = 0;
+    board.classList.add('open');
+  }
+
+  function closeBoard(){ board.classList.remove('open'); selectedId = null; }
+
+  // ---- Inline compare: brand panels anchored right, added via the left nav ----
+  // compareList holds brand names; index 0 = the kept panel (stays on the right).
+  const compareRow = document.getElementById('compare-row');
+
+  function comparePanel(brand){
+    const group = brandMap[brand];
+    const id = compareLoc[brand] || group[0].id;
+    const g = GYMS.find(x=>x.id===id);
+    const tabs = group.length > 1
+      ? `<div class="ctabs">${group.map(x=>`<button class="tab${x.id===id?' active':''}" data-tab="${esc(brand)}__${esc(x.id)}">${esc(x.town)}</button>`).join('')}</div>` : '';
+    return `<div class="cpanel">
+      <div class="cph"><button class="cpx" data-rm="${esc(brand)}" aria-label="Remove">×</button>
+        <h2>${esc(brand)}</h2><div class="sub">${esc(g.type)} · ${esc(g.town)}, ${esc(g.island)}</div></div>
+      ${tabs}
+      <div class="cpb">${detailHtml(g)}</div></div>`;
+  }
+  function renderCompare(){
+    // kept (index 0) on the right -> reverse so it renders last; empty hint sits at far left
+    const panels = compareList.slice().reverse().map(comparePanel).join('');
+    const empty = compareList.length < 3 ? `<div class="cpanel empty">＋ Pick a brand on the left<br>to compare it here</div>` : '';
+    compareRow.innerHTML = empty + panels;
+    compareRow.querySelectorAll('[data-rm]').forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); removeCompare(btn.getAttribute('data-rm')); });
+    compareRow.querySelectorAll('[data-tab]').forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation();
+      const [b,i]=btn.getAttribute('data-tab').split('__'); compareLoc[b]=i; renderCompare(); });
+    const set = new Set();
+    compareList.forEach(b=>brandMap[b].forEach(x=>set.add(x.id)));
+    GYMS.forEach(g=>{ markers[g.id].setIcon(icon(g, set.has(g.id))); markers[g.id].setOpacity(set.size? (set.has(g.id)?1:0.25) : 1); });
+  }
+  function enterCompare(brand, locId){
+    compareMode = true;
+    compareList = brand ? [brand] : [];
+    if(brand && locId) compareLoc[brand] = locId;
+    closeBoard();
+    document.body.classList.add('compare-on');
+    renderCompare();
+  }
+  function addCompare(brand){
+    if(compareList.includes(brand)){ renderCompare(); return; }
+    if(compareList.length >= 3) return;   // up to 3 side by side
+    compareList.push(brand);              // newest renders to the left; kept stays on the right
+    renderCompare();
+  }
+  function removeCompare(brand){
+    compareList = compareList.filter(b=>b!==brand);
+    if(!compareList.length){ exitCompare(); return; }
+    renderCompare();
+  }
+  function exitCompare(){
+    if(!compareMode) return;
+    compareMode = false; compareList = [];
+    document.body.classList.remove('compare-on');
+    compareRow.innerHTML = '';
+    setActivePins();
+  }
+
+  // Escape closes compare / detail
+  document.addEventListener('keydown', e=>{
+    if(e.key!=='Escape') return;
+    if(compareMode) exitCompare();
+    else if(board.classList.contains('open')) resetToAll();
+  });
+
+  // initial state
+  setActivePins();
+
+  // Deep-link: open a location if ?focus=<id>
+  const fid = new URLSearchParams(location.search).get('focus');
+  if(fid && GYMS.some(g=>g.id===fid)) setTimeout(()=>selectLocation(fid), 400);
+})();
+</script>
+</body>
+</html>
