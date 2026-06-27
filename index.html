@@ -137,11 +137,23 @@
     text-align:center;font-weight:600;font-size:14px;padding:26px;min-height:220px}
 
   @media (max-width:680px){
-    .sidebar{width:206px}
-    .board{right:50%;top:auto;bottom:14px;transform:translateX(50%) translateY(160%);width:calc(100vw - 24px);max-height:58vh}
+    /* brand navigator -> horizontal top bar */
+    .sidebar{top:10px;left:10px;right:10px;bottom:auto;width:auto;max-height:none;transform:none;
+      flex-direction:row;align-items:stretch;border-radius:14px}
+    .sb-head{flex:0 0 auto;border-bottom:none;border-right:3px solid var(--ink);padding:9px 11px}
+    .sb-head h3{font-size:16px}
+    .sb-toggle{display:none}
+    .sb-list{flex:1;display:flex;flex-direction:row;align-items:center;gap:6px;
+      overflow-x:auto;overflow-y:hidden;padding:7px 8px}
+    .sb-all,.brand-h{flex:0 0 auto;width:auto;margin:0;white-space:nowrap}
+    /* detail -> bottom sheet */
+    .board{right:50%;left:auto;top:auto;bottom:10px;transform:translateX(50%) translateY(170%);
+      width:calc(100vw - 20px);max-height:66vh}
     .board.open{transform:translateX(50%) translateY(0)}
-    .compare-row{left:12px;right:12px;top:12px;max-width:none}
-    .cpanel{max-height:calc(100vh - 26px)}
+    /* compare -> full-width panels stacked vertically */
+    .compare-row{left:10px;right:10px;top:74px;bottom:10px;max-width:none;
+      flex-direction:column;align-items:stretch;overflow-x:hidden;overflow-y:auto}
+    .cpanel{width:auto;max-height:none}
   }
 </style>
 </head>
@@ -278,7 +290,7 @@
   const sbToggle = document.getElementById('sb-toggle');
   function setCollapsed(c){ sidebar.classList.toggle('collapsed', c); sbToggle.textContent = c?'›':'‹'; sbToggle.setAttribute('aria-label', c?'Expand brand list':'Collapse brand list'); }
   sbToggle.onclick = ()=>setCollapsed(!sidebar.classList.contains('collapsed'));
-  setCollapsed(window.matchMedia('(max-width:680px)').matches);
+  setCollapsed(false);   // desktop starts expanded; mobile uses the horizontal bar (CSS)
 
   // ---- Detail board ----
   const board = document.getElementById('board');
